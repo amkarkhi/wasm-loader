@@ -1,9 +1,6 @@
-#![no_std]
-
-use core::panic::PanicInfo;
 use core::slice;
 use core::str;
-use heapless::String;
+use heapless::{String, Vec};
 
 #[link(wasm_import_module = "host")]
 extern "C" {
@@ -16,10 +13,24 @@ fn log_message(message: &str) {
     }
 }
 
+/// # Safety
+/// - This function expects valid pointers and lengths as inputs.
+/// - Callers must ensure that `input_ptr` points to a readable memory region
+/// - of at least `input_len` bytes.
 #[no_mangle]
-pub extern "C" fn process(input_ptr: *const u8, input_len: usize, _: *const u8, _: usize) -> i32 {
+pub unsafe extern "C" fn process(
+    input_ptr: *const u8,
+    input_len: usize,
+    _: *const u8,
+    _: usize,
+) -> i32 {
     log_message("[Counter] Starting character count");
     let input_slice = unsafe { slice::from_raw_parts(input_ptr, input_len) };
+    // Normalize the input (e.g., trim whitespaces, remove delimiters)
+    let input_normalized: Vec<u8, 1024> =
+        input_slice.iter().filter(|&&c| c != 0).cloned().collect();
+    log_message("[Counter] Input normalized. Input content:");
+    log_message(str::from_utf8(&input_normalized).unwrap_or("Invalid UTF-8"));
     let input_str = match str::from_utf8(input_slice) {
         Ok(s) => s,
         Err(_) => {
@@ -34,6 +45,7 @@ pub extern "C" fn process(input_ptr: *const u8, input_len: usize, _: *const u8, 
     let spaces = input_str.chars().filter(|c| c.is_whitespace()).count();
     log_message("[Counter] Analysis complete");
     let mut output: String<256> = String::new();
+    log_message("[Counter] Memory check: Output buffer successfully created.");
     let _ = output.push_str("Total: ");
     append_number(&mut output, total_chars);
     let _ = output.push_str(" | Letters: ");
@@ -64,12 +76,6 @@ fn append_number(s: &mut String<256>, n: usize) {
         i -= 1;
         let _ = s.push(buffer[i] as char);
     }
-}
-
-#[cfg(not(test))]
-#[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
-    loop {}
 }
 
 #[global_allocator]

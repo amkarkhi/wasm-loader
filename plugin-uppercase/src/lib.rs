@@ -36,6 +36,7 @@ pub extern "C" fn process(input_ptr: *const u8, input_len: usize, _: *const u8, 
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
+    log_message("[Uppercase] PANIC occurred!");
     loop {}
 }
 

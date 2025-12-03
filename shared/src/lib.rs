@@ -1,5 +1,7 @@
 extern crate alloc;
 
+pub mod plugin_helpers;
+
 use alloc::string::String;
 use alloc::vec::Vec;
 

@@ -2,6 +2,7 @@ mod binary_registry;
 mod executor;
 mod server;
 mod socket_core;
+mod tracer;
 
 use anyhow::Result;
 use wasmtime::{Config, Engine};
