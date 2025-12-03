@@ -1,0 +1,290 @@
+# Cargo Make Configuration for WASM Core
+# 
+# Usage:
+#   cargo make build        - Build everything
+#   cargo make test         - Run all tests
+#   cargo make server       - Start server
+#   cargo make client       - Run client
+#   cargo make all          - Build and test
+#   cargo make clean        - Clean everything
+
+# ============================================================================
+# Build Tasks
+# ============================================================================
+
+[tasks.build-plugins]
+description = "Build all WASM plugins"
+workspace = false
+script_runner = "@shell"
+script = '''
+echo "🔧 Building WASM plugins..."
+cargo build --target wasm32-unknown-unknown --release -p plugin-example
+cargo build --target wasm32-unknown-unknown --release -p plugin-uppercase
+cargo build --target wasm32-unknown-unknown --release -p plugin-counter
+cargo build --target wasm32-unknown-unknown --release -p plugin-rot13
+cargo build --target wasm32-unknown-unknown --release -p plugin-env-reader
+mkdir -p plugins
+cp target/wasm32-unknown-unknown/release/plugin_example.wasm plugins/reverser.wasm
+cp target/wasm32-unknown-unknown/release/plugin_uppercase.wasm plugins/uppercase.wasm
+cp target/wasm32-unknown-unknown/release/plugin_counter.wasm plugins/counter.wasm
+cp target/wasm32-unknown-unknown/release/plugin_rot13.wasm plugins/rot13.wasm
+cp target/wasm32-unknown-unknown/release/plugin_env_reader.wasm plugins/env-reader.wasm
+echo "✅ All plugins built successfully"
+ls -lh plugins/*.wasm
+'''
+
+[tasks.build-core]
+description = "Build core server"
+command = "cargo"
+args = ["build", "--release", "-p", "wasm-core"]
+
+[tasks.build-client]
+description = "Build client"
+command = "cargo"
+args = ["build", "--release", "-p", "wasm-client"]
+
+[tasks.build-shared]
+description = "Build shared library"
+command = "cargo"
+args = ["build", "--release", "-p", "wasm-shared"]
+
+[tasks.build]
+description = "Build all components"
+dependencies = ["build-shared", "build-plugins", "build-core", "build-client"]
+
+[tasks.build-dev]
+description = "Build all components (debug mode)"
+script_runner = "@shell"
+script = '''
+cargo build -p wasm-shared
+cargo build -p wasm-core
+cargo build -p wasm-client
+./build-all-plugins.sh
+'''
+
+# ============================================================================
+# Test Tasks
+# ============================================================================
+
+[tasks.test-unit]
+description = "Run unit tests"
+command = "cargo"
+args = ["test", "--lib", "--workspace", "--exclude", "plugin-example", "--exclude", "plugin-uppercase", "--exclude", "plugin-counter", "--exclude", "plugin-rot13"]
+
+[tasks.test-integration]
+description = "Run integration tests"
+command = "cargo"
+args = ["test", "-p", "wasm-tests"]
+
+[tasks.test]
+description = "Run unit tests (fast, no server required)"
+clear = true
+workspace = false
+script_runner = "@shell"
+script = '''
+echo "🧪 Running unit tests..."
+cargo test -p wasm-shared
+cargo test -p wasm-core
+cargo test -p wasm-client
+echo "✅ Unit tests passed"
+echo ""
+echo "ℹ️  To run integration tests (requires server): cargo make test-full"
+'''
+
+[tasks.test-full]
+description = "Run full test suite (requires server)"
+script_runner = "@shell"
+script = '''
+echo "?? Running full test suite..."
+./run-tests.sh
+'''
+
+# ============================================================================
+# Run Tasks
+# ============================================================================
+
+[tasks.server]
+description = "Start the core server"
+command = "cargo"
+args = ["run", "--release", "-p", "wasm-core"]
+
+[tasks.server-dev]
+description = "Start the core server (debug mode)"
+command = "cargo"
+args = ["run", "-p", "wasm-core"]
+
+[tasks.client]
+description = "Run the client (use: cargo make client -- <args>)"
+command = "cargo"
+args = ["run", "--release", "-p", "wasm-client", "--"]
+
+[tasks.client-dev]
+description = "Run the client in debug mode"
+command = "cargo"
+args = ["run", "-p", "wasm-client", "--"]
+
+# ============================================================================
+# Utility Tasks
+# ============================================================================
+
+[tasks.clean]
+description = "Clean all build artifacts"
+script_runner = "@shell"
+script = '''
+echo "?? Cleaning..."
+cargo clean
+rm -rf plugins/*.wasm
+rm -f metadata.json
+rm -f /tmp/wasm-core.sock
+echo "? Clean complete"
+'''
+
+[tasks.clean-socket]
+description = "Clean socket file only"
+script_runner = "@shell"
+script = '''
+rm -f /tmp/wasm-core.sock
+echo "? Socket cleaned"
+'''
+
+[tasks.format]
+description = "Format all Rust code"
+command = "cargo"
+args = ["fmt", "--all"]
+
+[tasks.lint]
+description = "Run clippy linter"
+command = "cargo"
+args = ["clippy", "--all", "--", "-D", "warnings"]
+
+[tasks.check]
+description = "Check code without building"
+command = "cargo"
+args = ["check", "--all"]
+
+# ============================================================================
+# Combined Tasks
+# ============================================================================
+
+[tasks.all]
+description = "Build and test everything"
+dependencies = ["build", "test"]
+
+[tasks.dev]
+description = "Quick dev build (debug mode)"
+dependencies = ["build-dev"]
+
+[tasks.ci]
+description = "CI pipeline (format, lint, build, test)"
+dependencies = ["format", "lint", "build", "test"]
+
+# ============================================================================
+# Example Tasks
+# ============================================================================
+
+[tasks.example-load]
+description = "Example: Load a plugin"
+dependencies = ["build"]
+script_runner = "@shell"
+script = '''
+echo "?? Loading reverser plugin..."
+cargo run --release -p wasm-client -- load --path ./plugins/reverser.wasm
+'''
+
+[tasks.example-execute]
+description = "Example: Execute a plugin (requires binary ID)"
+script_runner = "@shell"
+script = '''
+echo "?? Example execution..."
+echo "First, load a plugin with: cargo make example-load"
+echo "Then use the Binary ID to execute"
+'''
+
+[tasks.example-chain]
+description = "Example: Chain plugins"
+script_runner = "@shell"
+script = '''
+echo "??  Example chain execution..."
+echo "Load plugins first, then chain them with their IDs"
+'''
+
+# ============================================================================
+# Development Workflow Tasks
+# ============================================================================
+
+[tasks.watch-server]
+description = "Watch and restart server on changes"
+install_crate = "cargo-watch"
+command = "cargo"
+args = ["watch", "-x", "run -p wasm-core"]
+
+[tasks.watch-test]
+description = "Watch and run tests on changes"
+install_crate = "cargo-watch"
+command = "cargo"
+args = ["watch", "-x", "test"]
+
+# ============================================================================
+# Deployment Tasks
+# ============================================================================
+
+[tasks.release]
+description = "Build release binaries"
+dependencies = ["clean", "build"]
+script_runner = "@shell"
+script = '''
+echo "?? Creating release..."
+mkdir -p release
+cp target/release/wasm-core release/
+cp target/release/wasm-client release/
+cp -r plugins release/
+echo "? Release created in ./release/"
+'''
+
+# ============================================================================
+# Help Task
+# ============================================================================
+
+[tasks.help]
+description = "Show available tasks"
+script_runner = "@shell"
+script = '''
+echo "?? WASM Core - Available Tasks"
+echo "??????????????????????????????????????????"
+echo ""
+echo "?? Build:"
+echo "  cargo make build           - Build everything"
+echo "  cargo make build-dev       - Build (debug mode)"
+echo "  cargo make build-plugins   - Build plugins only"
+echo "  cargo make build-core      - Build core only"
+echo "  cargo make build-client    - Build client only"
+echo ""
+echo "?? Test:"
+echo "  cargo make test            - Run unit tests"
+echo "  cargo make test-full       - Run full test suite"
+echo "  cargo make test-integration - Run integration tests"
+echo ""
+echo "?? Run:"
+echo "  cargo make server          - Start server"
+echo "  cargo make client          - Run client"
+echo "  cargo make server-dev      - Start server (debug)"
+echo ""
+echo "???  Utility:"
+echo "  cargo make clean           - Clean all artifacts"
+echo "  cargo make format          - Format code"
+echo "  cargo make lint            - Run linter"
+echo "  cargo make check           - Check code"
+echo ""
+echo "? Combined:"
+echo "  cargo make all             - Build + test"
+echo "  cargo make dev             - Quick dev build"
+echo "  cargo make ci              - Full CI pipeline"
+echo ""
+echo "?? Examples:"
+echo "  cargo make example-load    - Load a plugin"
+echo ""
+echo "??????????????????????????????????????????"
+'''
+
+[tasks.default]
+alias = "help"

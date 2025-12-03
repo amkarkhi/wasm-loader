@@ -1,0 +1,19 @@
+[package]
+name = "wasm-tests"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+path = "integration_tests.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+wasm-shared = { path = "../shared" }
+tokio-util = { version = "0.7", features = ["codec"] }
+futures = "0.3"
+
+

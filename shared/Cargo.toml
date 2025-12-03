@@ -1,0 +1,16 @@
+[package]
+name = "wasm-shared"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+serde = { workspace = true, features = [ "derive", "alloc" ]}
+uuid = { workspace = true, features = [ "serde"] }
+serde_json = { workspace = true, optional = true }
+serde-json-core = { workspace = true, optional = true }
+
+[features]
+default = ["std"]
+std = ["serde_json", "serde/std", "uuid/std"]
+no_std = ["serde-json-core"]
+

@@ -1,0 +1,23 @@
+[package]
+name = "wasm-core"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "wasm-core"
+path = "src/main.rs"
+
+[dependencies]
+wasmtime = { workspace = true }
+anyhow = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true, features= ["v4", "serde"] }
+dashmap = { workspace = true }
+tracing = "0.1"
+tracing-subscriber = "0.3"
+tokio-util = { version = "0.7", features = ["codec"] }
+futures = "0.3"
+wasm-shared = { path = "../shared" }
+rand = "0.9.2"
